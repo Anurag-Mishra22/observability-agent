@@ -51,12 +51,15 @@ func main() {
 	// Tail logs from all pods in specified namespace(s)
 	go func() {
 		namespace := os.Getenv("WATCH_NAMESPACE")
+		labelSelector := os.Getenv("LABEL_SELECTOR") // optional: filter pods by label
+
 		if namespace == "" {
 			fmt.Println("WATCH_NAMESPACE not set, tailing all namespaces")
 		} else {
 			fmt.Printf("Tailing pods in namespace: %s\n", namespace)
 		}
-		logging.TailAllPods(namespace)
+
+		logging.TailAllPods(namespace, labelSelector)
 	}()
 
 	// Expose /metrics endpoint
