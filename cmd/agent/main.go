@@ -9,14 +9,17 @@ import (
 func main() {
 	logChannel := make(logging.LogEventChannel, 1000)
 
+	// Choose sink (stdout for now)
+	sinker := &logging.StdoutSink{}
+
 	// Start pipeline processor
 	go func() {
 		for event := range logChannel {
-			// Filter logs
+			// Example filter: skip kube-system logs
 			if event.Namespace == "kube-system" {
 				continue
 			}
-			logging.Sink(event)
+			_ = sinker.Write(event)
 		}
 	}()
 
