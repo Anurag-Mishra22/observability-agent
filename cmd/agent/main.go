@@ -15,11 +15,23 @@ func main() {
 	metrics.Init()
 
 	// Start log tailing (async)
+	// go func() {
+	// 	logFile := "app.log"
+	// 	if _, err := os.Stat(logFile); err == nil {
+	// 		fmt.Printf("Tailing log file: %s\n", logFile)
+	// 		if err := logging.TailFile(logFile); err != nil {
+	// 			fmt.Println("Error tailing log file:", err)
+	// 		}
+	// 	} else {
+	// 		fmt.Println("No log file found, skipping logging")
+	// 	}
+	// }()
+	// Start fsnotify log tailing
 	go func() {
 		logFile := "app.log"
 		if _, err := os.Stat(logFile); err == nil {
-			fmt.Printf("Tailing log file: %s\n", logFile)
-			if err := logging.TailFile(logFile); err != nil {
+			fmt.Printf("Tailing log file using fsnotify: %s\n", logFile)
+			if err := logging.TailFileFS(logFile); err != nil {
 				fmt.Println("Error tailing log file:", err)
 			}
 		} else {
