@@ -15,7 +15,6 @@ import (
 
 // TailPodLogs streams logs from a single pod/container
 func TailPodLogs(namespace, podName, containerName string) error {
-	// Create in-cluster config (use clientcmd.BuildConfigFromFlags for outside cluster)
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		return err
@@ -55,15 +54,40 @@ func TailPodLogs(namespace, podName, containerName string) error {
 	return scanner.Err()
 }
 
+// TailAllPods tails logs from all pods in a namespace.
+// If namespace is empty, tails logs from all namespaces.
 func TailAllPods(namespace string) {
-	config, _ := rest.InClusterConfig()
-	clientset, _ := kubernetes.NewForConfig(config)
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		fmt.Println("Error creating in-cluster config:", err)
+		return
+	}
 
-	pods, _ := clientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		fmt.Println("Error creating Kubernetes clientset:", err)
+		return
+	}
 
-	for _, pod := range pods.Items {
+	listOptions := metav1.ListOptions{}
+	targetNamespace := namespace
+	if namespace == "" {
+		targetNamespace = metav1.NamespaceAll
+	}
+
+	podList, err := clientset.CoreV1().Pods(targetNamespace).List(context.Background(), listOptions)
+	if err != nil {
+		fmt.Printf("Error listing pods in namespace '%s': %v\n", targetNamespace, err)
+		return
+	}
+
+	for _, pod := range podList.Items {
 		for _, container := range pod.Spec.Containers {
-			go TailPodLogs(namespace, pod.Name, container.Name)
+			go func(ns, podName, containerName string) {
+				if err := TailPodLogs(ns, podName, containerName); err != nil {
+					fmt.Printf("Error tailing logs for pod %s container %s: %v\n", podName, containerName, err)
+				}
+			}(pod.Namespace, pod.Name, container.Name)
 		}
 	}
 }

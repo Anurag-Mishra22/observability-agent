@@ -47,10 +47,15 @@ func main() {
 	// 		fmt.Println("Error tailing container logs:", err)
 	// 	}
 	// }()
-	// Start tailing logs from all pods in the specified namespace
+
+	// Tail logs from all pods in specified namespace(s)
 	go func() {
-		namespace := "default"
-		fmt.Printf("Tailing all pods in namespace: %s\n", namespace)
+		namespace := os.Getenv("WATCH_NAMESPACE")
+		if namespace == "" {
+			fmt.Println("WATCH_NAMESPACE not set, tailing all namespaces")
+		} else {
+			fmt.Printf("Tailing pods in namespace: %s\n", namespace)
+		}
 		logging.TailAllPods(namespace)
 	}()
 
