@@ -38,6 +38,15 @@ func main() {
 			fmt.Println("No log file found, skipping logging")
 		}
 	}()
+	// Start container log tailing
+	go func() {
+		// Replace with the name or ID of your running container
+		containerName := "testapp"
+		fmt.Printf("Tailing container logs: %s\n", containerName)
+		if err := logging.TailContainerLogs(containerName); err != nil {
+			fmt.Println("Error tailing container logs:", err)
+		}
+	}()
 
 	// Expose /metrics endpoint
 	http.Handle("/metrics", promhttp.Handler())
