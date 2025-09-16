@@ -12,14 +12,29 @@ func main() {
 	// Choose sink (stdout for now)
 	sinker := &logging.StdoutSink{}
 
-	// Start pipeline processor
+	// Define filters
+	filters := []logging.Filter{
+		&logging.NamespaceFilter{Excluded: []string{"kube-system", "kube-public"}},
+		&logging.KeywordFilter{Keyword: "error"},
+	}
+	// Pipeline
 	go func() {
 		for event := range logChannel {
-			// Example filter: skip kube-system logs
-			if event.Namespace == "kube-system" {
-				continue
+			keep := true
+			var ev *logging.LogEvent = &event
+
+			for _, f := range filters {
+				var ok bool
+				ev, ok = f.Apply(*ev)
+				if !ok {
+					keep = false
+					break
+				}
 			}
-			_ = sinker.Write(event)
+
+			if keep && ev != nil {
+				_ = sinker.Write(*ev)
+			}
 		}
 	}()
 
