@@ -68,6 +68,7 @@ func TailContainerLogs(containerID string) error {
 				Timestamp: time.Now(),
 				Line:      line,
 				Source:    containerID + "-stderr",
+				Container: containerID,
 			}
 			data, _ := json.Marshal(event)
 			fmt.Println(string(data))

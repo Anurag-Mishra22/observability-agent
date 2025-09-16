@@ -39,13 +39,19 @@ func main() {
 		}
 	}()
 	// Start container log tailing
+	// go func() {
+	// 	// Replace with the name or ID of your running container
+	// 	containerName := "testapp"
+	// 	fmt.Printf("Tailing container logs: %s\n", containerName)
+	// 	if err := logging.TailContainerLogs(containerName); err != nil {
+	// 		fmt.Println("Error tailing container logs:", err)
+	// 	}
+	// }()
+	// Start tailing logs from all pods in the specified namespace
 	go func() {
-		// Replace with the name or ID of your running container
-		containerName := "testapp"
-		fmt.Printf("Tailing container logs: %s\n", containerName)
-		if err := logging.TailContainerLogs(containerName); err != nil {
-			fmt.Println("Error tailing container logs:", err)
-		}
+		namespace := "default"
+		fmt.Printf("Tailing all pods in namespace: %s\n", namespace)
+		logging.TailAllPods(namespace)
 	}()
 
 	// Expose /metrics endpoint
