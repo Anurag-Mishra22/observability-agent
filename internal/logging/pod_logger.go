@@ -3,8 +3,6 @@ package logging
 import (
 	"bufio"
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -29,12 +27,12 @@ func TailPodLogs(namespace, podName, containerName string) {
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		fmt.Println("Error creating in-cluster config:", err)
+		Sink(ParseLog(err.Error(), "error", podName, containerName, namespace))
 		return
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Println("Error creating Kubernetes clientset:", err)
+		Sink(ParseLog(err.Error(), "error", podName, containerName, namespace))
 		return
 	}
 
@@ -55,25 +53,13 @@ func TailPodLogs(namespace, podName, containerName string) {
 				break // reconnect if stream ends
 			}
 
-			line = cleanLine(line)
+			line = strings.TrimSpace(line)
 			if line == "" {
-				continue // skip empty lines
+				continue
 			}
 
-			// Check if line is already JSON
-			if !isJSON(line) {
-				event := LogEvent{
-					Timestamp: time.Now(),
-					Line:      line,
-					Pod:       podName,
-					Container: containerName,
-					Namespace: namespace,
-				}
-				data, _ := json.Marshal(event)
-				fmt.Println(string(data))
-			} else {
-				fmt.Println(line)
-			}
+			parsed := ParseLog(line, "pod", podName, containerName, namespace)
+			Sink(parsed)
 		}
 
 		stream.Close()
@@ -86,12 +72,12 @@ func TailPodLogs(namespace, podName, containerName string) {
 func TailAllPods(namespace string, labelSelector string) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		fmt.Println("Error creating in-cluster config:", err)
+		Sink(ParseLog(err.Error(), "error", "", "", ""))
 		return
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Println("Error creating Kubernetes clientset:", err)
+		Sink(ParseLog(err.Error(), "error", "", "", ""))
 		return
 	}
 
@@ -105,7 +91,7 @@ func TailAllPods(namespace string, labelSelector string) {
 			LabelSelector: labelSelector,
 		})
 		if err != nil {
-			fmt.Println("Error creating pod watcher:", err)
+			Sink(ParseLog(err.Error(), "error", "", "", targetNamespace))
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -123,7 +109,7 @@ func TailAllPods(namespace string, labelSelector string) {
 			}
 
 			for _, container := range pod.Spec.Containers {
-				key := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, container.Name)
+				key := pod.Namespace + "/" + pod.Name + "/" + container.Name
 
 				mu.Lock()
 				if _, exists := activePods[key]; !exists {
@@ -138,15 +124,4 @@ func TailAllPods(namespace string, labelSelector string) {
 		watcher.Stop()
 		time.Sleep(1 * time.Second)
 	}
-}
-
-// cleanLine trims whitespace and newline characters
-func cleanLine(line string) string {
-	return strings.TrimSpace(line)
-}
-
-// isJSON checks if a string is valid JSON
-func isJSON(s string) bool {
-	var js json.RawMessage
-	return json.Unmarshal([]byte(s), &js) == nil
 }

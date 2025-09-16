@@ -3,16 +3,14 @@ package logging
 import (
 	"bufio"
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+// TailContainerLogs streams logs from a container and sends them to Sink
 func TailContainerLogs(containerID string) error {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -37,7 +35,7 @@ func TailContainerLogs(containerID string) error {
 	stdoutReader, stdoutWriter := io.Pipe()
 	stderrReader, stderrWriter := io.Pipe()
 
-	// Demultiplex in a goroutine
+	// Demultiplex stdout/stderr
 	go func() {
 		_, _ = stdcopy.StdCopy(stdoutWriter, stderrWriter, out)
 		stdoutWriter.Close()
@@ -49,13 +47,8 @@ func TailContainerLogs(containerID string) error {
 		scanner := bufio.NewScanner(stdoutReader)
 		for scanner.Scan() {
 			line := scanner.Text()
-			event := LogEvent{
-				Timestamp: time.Now(),
-				Line:      line,
-				Source:    containerID,
-			}
-			data, _ := json.Marshal(event)
-			fmt.Println(string(data))
+			parsed := ParseLog(line, containerID, "", containerID, "")
+			Sink(parsed)
 		}
 	}()
 
@@ -64,17 +57,11 @@ func TailContainerLogs(containerID string) error {
 		scanner := bufio.NewScanner(stderrReader)
 		for scanner.Scan() {
 			line := scanner.Text()
-			event := LogEvent{
-				Timestamp: time.Now(),
-				Line:      line,
-				Source:    containerID + "-stderr",
-				Container: containerID,
-			}
-			data, _ := json.Marshal(event)
-			fmt.Println(string(data))
+			parsed := ParseLog(line, containerID+"-stderr", "", containerID, "")
+			Sink(parsed)
 		}
 	}()
 
-	// Block forever so tail keeps running
+	// Block forever
 	select {}
 }
